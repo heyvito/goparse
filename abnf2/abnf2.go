@@ -2,9 +2,12 @@
 
 package abnf2
 
-import p "github.com/heyvito/goparse/parser"
+import (
+	"github.com/heyvito/goparse/abnf"
+	p "github.com/heyvito/goparse/parser"
+)
 
-var parser = map[string]p.Consumer{
+var parser = p.MakeRules(map[string]p.Consumer{
 	"rulelist":      p.Plus(p.Alt(p.Ref("rule"), p.Cat(p.Star(p.Ref("c-wsp")), p.Ref("c-nl")))),
 	"rule":          p.Cat(p.Ref("rulename"), p.Ref("defined-as"), p.Ref("elements"), p.Ref("c-nl")),
 	"rulename":      p.Cat(p.ALPHA, p.Star(p.Alt(p.ALPHA, p.DIGIT, p.Lit('-')))),
@@ -26,4 +29,13 @@ var parser = map[string]p.Consumer{
 	"dec-val":       p.Cat(p.Lit('d'), p.Plus(p.DIGIT), p.Opt(p.Alt(p.Plus(p.Cat(p.Lit('.'), p.Plus(p.DIGIT))), p.Cat(p.Lit('-'), p.Plus(p.DIGIT))))),
 	"hex-val":       p.Cat(p.Lit('x'), p.Plus(p.HEXDIG), p.Opt(p.Alt(p.Plus(p.Cat(p.Lit('.'), p.Plus(p.HEXDIG))), p.Cat(p.Lit('-'), p.Plus(p.HEXDIG))))),
 	"prose-val":     p.Cat(p.Lit('<'), p.Star(p.Alt(p.HexRange(0x20, 0x3d), p.HexRange(0x3f, 0x7e))), p.Lit('>')),
+})
+
+func Parse(data string) (*abnf.RuleList, error) {
+	cur := p.CursorFromString(data)
+	tree, err := p.KickoffParser(&cur, parser, "rulelist")
+	if err != nil {
+		return nil, err
+	}
+	return p.ReduceInto(tree, abnf.Reducer).(*abnf.RuleList), nil
 }

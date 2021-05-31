@@ -59,6 +59,9 @@ func (r ReducerContext) Flatten(v interface{}) interface{} {
 			result = append(result, r.Flatten(obj.Interface()).([]interface{})...)
 		case reflect.Interface:
 			innerObj := obj.Elem()
+			if obj.IsNil() {
+				continue
+			}
 			if innerObj.Type().Kind() == reflect.Slice {
 				result = append(result, r.Flatten(innerObj.Interface()).([]interface{})...)
 			} else {

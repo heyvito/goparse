@@ -6,7 +6,11 @@ var Reducer = map[string]p.Reducer{
 	"rulelist": func(ctx *p.ReducerContext) interface{} {
 		var result []Rule
 		for _, i := range ctx.AtomList() {
-			result = append(result, ctx.Reduce(i).(Rule))
+			// Here we may receive a single "RefResult", representing a
+			// "rule", or an AtomList, representing comments and linebreaks
+			if r, ok := i.(p.RefResult); ok {
+				result = append(result, ctx.Reduce(r).(Rule))
+			}
 		}
 		return &RuleList{Rules: result}
 	},
@@ -22,8 +26,8 @@ var Reducer = map[string]p.Reducer{
 		return RuleName{Name: v}
 	},
 	"defined-as": func(ctx *p.ReducerContext) interface{} {
-		_, v := ctx.ListAsString()
-		return DefinedAs{Value: v}
+		v := ctx.ListAsList().Nth(1)
+		return DefinedAs{Value: v.Value().(string)}
 	},
 	"elements": func(ctx *p.ReducerContext) interface{} {
 		return Elements{Alternation: ctx.Reduce(ctx.Value.(p.AtomList).First()).(Alternation)}
@@ -37,7 +41,11 @@ var Reducer = map[string]p.Reducer{
 		}
 		var cats []Concatenation
 		for _, i := range ctx.Flatten(opts).([]interface{}) {
-			cats = append(cats, i.(Concatenation))
+			// Here we may receive a concatenation, or a `/`. We care
+			// about the first, and discard the second.
+			if v, ok := i.(Concatenation); ok {
+				cats = append(cats, v)
+			}
 		}
 
 		return Alternation{Elements: cats}
@@ -98,18 +106,18 @@ var Reducer = map[string]p.Reducer{
 	},
 	"group": func(ctx *p.ReducerContext) interface{} {
 		list := ctx.ListAsList()
-		if list.Len() != 3 {
+		if list.Len() != 5 {
 			panic("BUG: Invalid group format")
 		}
-		return Group{Elements: ctx.Reduce(list.Nth(1)).(Alternation)}
+		return Group{Elements: ctx.Reduce(list.Nth(2)).(Alternation)}
 	},
 	"option": func(ctx *p.ReducerContext) interface{} {
 		list := ctx.ListAsList()
-		if list.Len() != 3 {
+		if list.Len() != 5 {
 			panic("BUG: Invalid option format")
 		}
 		return Option{
-			Elements: ctx.Reduce(list.Nth(1)).(Alternation),
+			Elements: ctx.Reduce(list.Nth(2)).(Alternation),
 		}
 	},
 	"char-val": func(ctx *p.ReducerContext) interface{} {
@@ -143,7 +151,7 @@ var Reducer = map[string]p.Reducer{
 
 		return HexVal{result}
 	},
-	"dec-val":func(ctx *p.ReducerContext) interface{} {
+	"dec-val": func(ctx *p.ReducerContext) interface{} {
 		opt := ctx.ListAsList().Nth(2).(p.OptionVal)
 		_, single := ctx.ListAsList().Nth(1).(p.AtomList).ReduceAsInt()
 
@@ -166,5 +174,11 @@ var Reducer = map[string]p.Reducer{
 		}
 
 		return DecVal{result}
+	},
+	"c-wsp": func(ctx *p.ReducerContext) interface{} {
+		return nil
+	},
+	"c-nl": func(ctx *p.ReducerContext) interface{} {
+		return nil
 	},
 }
