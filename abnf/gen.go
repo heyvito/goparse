@@ -1,14 +1,13 @@
-package gen
+package abnf
 
 import (
 	"fmt"
 	"strings"
 
-	"github.com/heyvito/goparse/abnf"
 	"github.com/heyvito/goparse/parser"
 )
 
-func Generate(list *abnf.RuleList) string {
+func Generate(list *RuleList) string {
 	sb := strings.Builder{}
 	sb.WriteString("var parser = map[string]p.Consumer{\n")
 	for _, r := range list.Rules {
@@ -39,9 +38,9 @@ func escapeString(str string) string {
 
 func WriteElement(element interface{}, sb *strings.Builder) {
 	switch el := element.(type) {
-	case abnf.Elements:
+	case Elements:
 		WriteElement(el.Alternation, sb)
-	case abnf.Alternation:
+	case Alternation:
 		if len(el.Elements) == 1 {
 			WriteElement(el.Elements[0], sb)
 			return
@@ -52,7 +51,7 @@ func WriteElement(element interface{}, sb *strings.Builder) {
 			sb.WriteString(",")
 		}
 		sb.WriteString(")")
-	case abnf.Concatenation:
+	case Concatenation:
 		if len(el.Elements) == 1 {
 			WriteElement(el.Elements[0], sb)
 			return
@@ -63,7 +62,7 @@ func WriteElement(element interface{}, sb *strings.Builder) {
 			sb.WriteString(",")
 		}
 		sb.WriteString(")")
-	case abnf.Repetition:
+	case Repetition:
 		if el.Meta == nil {
 			WriteElement(el.Element, sb)
 			return
@@ -78,11 +77,11 @@ func WriteElement(element interface{}, sb *strings.Builder) {
 
 		WriteElement(el.Element, sb)
 		sb.WriteRune(')')
-	case abnf.Group:
+	case Group:
 		WriteElement(el.Elements, sb)
-	case abnf.Element:
+	case Element:
 		WriteElement(el.Inner, sb)
-	case abnf.RuleName:
+	case RuleName:
 		if _, ok := parser.CoreConsumers[strings.ToLower(el.Name)]; ok {
 			sb.WriteString("p.")
 			sb.WriteString(strings.ToUpper(el.Name))
@@ -91,11 +90,11 @@ func WriteElement(element interface{}, sb *strings.Builder) {
 		sb.WriteString("p.Ref(\"")
 		sb.WriteString(el.Name)
 		sb.WriteString("\")")
-	case abnf.Option:
+	case Option:
 		sb.WriteString("p.Opt(")
 		WriteElement(el.Elements, sb)
 		sb.WriteString(")")
-	case abnf.CharVal:
+	case CharVal:
 		if len(el.Value) == 1 {
 			sb.WriteString("p.Lit('")
 			sb.WriteString(escapeLit(el.Value))
@@ -105,17 +104,17 @@ func WriteElement(element interface{}, sb *strings.Builder) {
 		sb.WriteString("p.Str(\"")
 		sb.WriteString(escapeString(el.Value))
 		sb.WriteString("\")")
-	case abnf.HexVal:
+	case HexVal:
 		switch el.Mode {
-		case abnf.NumericModeRange:
+		case NumericModeRange:
 			sb.WriteString("p.HexRange(")
 			sb.WriteString(fmt.Sprintf("0x%02x, 0x%02x", el.Range.From, el.Range.To))
 			sb.WriteString(")")
-		case abnf.NumericModeSingle:
+		case NumericModeSingle:
 			sb.WriteString("p.Hex(")
 			sb.WriteString(fmt.Sprintf("0x%02x", el.Single))
 			sb.WriteString(")")
-		case abnf.NumericModeSequence:
+		case NumericModeSequence:
 			sb.WriteString("HexSeq(")
 			for _, v := range el.Sequence {
 				sb.WriteString(fmt.Sprintf("0x%2x,", v))
@@ -125,17 +124,17 @@ func WriteElement(element interface{}, sb *strings.Builder) {
 			panic("Unimplemented")
 		}
 
-	case abnf.DecVal:
+	case DecVal:
 		switch el.Mode {
-		case abnf.NumericModeRange:
+		case NumericModeRange:
 			sb.WriteString("p.DecRange(")
 			sb.WriteString(fmt.Sprintf("%d, %d", el.Range.From, el.Range.To))
 			sb.WriteString(")")
-		case abnf.NumericModeSingle:
+		case NumericModeSingle:
 			sb.WriteString("p.Dec(")
 			sb.WriteString(fmt.Sprintf("%d", el.Single))
 			sb.WriteString(")")
-		case abnf.NumericModeSequence:
+		case NumericModeSequence:
 			sb.WriteString("p.DecSeq(")
 			for _, v := range el.Sequence {
 				sb.WriteString(fmt.Sprintf("%d,", v))
